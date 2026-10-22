@@ -8,7 +8,7 @@
 
 A minimal Bing wallpaper app for **Windows 10/11 x64**, written in native **C / Win32**. No tray icon or resident background process: the worker exits after every attempt, and Windows Task Scheduler handles later retries.
 
-> An unofficial project. The settings interface and portable uninstall dialogs are currently in Simplified Chinese.
+> An unofficial project. The settings interface automatically follows the current user's Windows display language at startup: Simplified Chinese display languages use Simplified Chinese; English and all other languages use English. The portable ZIP includes separate English and Simplified Chinese uninstall launchers.
 
 ## Download
 
@@ -36,12 +36,12 @@ No separate Python, .NET, or WebView runtime is required. Portable uninstall use
 | Log retention | 3 days | 1–365 days |
 | Download resolution | 1080P | 1080P (1920×1080) or 4K (3840×2160) |
 
-- **保存设置** — Save settings.
-- **立即检查 / 更换** — Check / update now, still respecting the once-per-day success limit.
-- **打开数据目录** — Open the data directory.
+- **Save settings / 保存设置** — Save settings.
+- **Check / update / 立即检查 / 更换** — Request an update now, still respecting the once-per-day success limit.
+- **Open data folder / 打开数据目录** — Open the data directory.
 - The GitHub icon opens [this repository](https://github.com/Ilikectrlmusic/bingwallpaper-lite) in the default browser.
 
-With unsaved changes, closing the window offers **保存并退出** (save and exit) or **取消** (cancel). Saving closes the window automatically only after the settings and scheduled task are updated successfully.
+With unsaved changes, closing the window offers **Save and exit / 保存并退出** or **Cancel / 取消** in the interface language. Saving closes the window automatically only after the settings and scheduled task are updated successfully.
 
 Resolution changes apply to the next download. If today's wallpaper was already applied successfully, changing resolution does not trigger a second update that day.
 
@@ -66,15 +66,15 @@ Retention follows local calendar dates. The wallpaper currently in use is protec
 
 **Installed version:** Windows Settings → Apps → Installed apps → Bing Wallpaper → Uninstall. The worker removes this installation's task, current-user data, and location entry before Inno Setup removes the program files.
 
-**Portable version:** Close the settings window, then double-click **`卸载便携版.cmd`**. The first dialog offers:
+**Portable version:** Close the settings window, then double-click **`Uninstall-Portable.cmd`** for English dialogs or **`卸载便携版.cmd`** for Chinese dialogs. Both scripts are included in the ZIP and offer the same actions:
 
-- **卸载 — Uninstall:** Remove the task, user data, and location entry, then move the entire portable directory, including the scripts, to the Recycle Bin.
-- **仅卸载定时任务 — Remove scheduled task only:** Stop and remove the task for the current directory and user. Keep the program, settings, cache, logs, and location entry. Move the whole folder, then run `BingWallpaper.exe` at the new location to register a new task.
-- **取消 — Cancel:** Make no changes.
+- **Uninstall / 卸载:** Remove the task, user data, and location entry, then move the entire portable directory, including the scripts, to the Recycle Bin.
+- **Remove scheduled task only / 仅卸载定时任务:** Stop and remove the task for the current directory and user. Keep the program, settings, cache, logs, and location entry. Move the whole folder, then run `BingWallpaper.exe` at the new location to register a new task.
+- **Cancel / 取消:** Make no changes.
 
-Both removal modes display success or error details. Use the **same Windows account** that originally configured the app. Uninstalling may remove the wallpaper file but does not choose another system wallpaper; select a replacement first if needed.
+Both removal modes display success or error details in the launcher's language. Keep the shared `uninstall-portable.ps1` helper alongside both CMD files. Use the **same Windows account** that originally configured the app. Uninstalling may remove the wallpaper file but does not choose another system wallpaper; select a replacement first if needed.
 
-For a writable portable directory, `data` moves with the folder. If data was stored in APPDATA, task-only removal preserves it there; moving the program **does not automatically migrate it**. Use **打开数据目录** to back it up and copy it into the new installation's data directory if needed. Task-only removal also retains the old location entry.
+For a writable portable directory, `data` moves with the folder. If data was stored in APPDATA, task-only removal preserves it there; moving the program **does not automatically migrate it**. Use **Open data folder / 打开数据目录** to back it up and copy it into the new installation's data directory if needed. Task-only removal also retains the old location entry.
 
 ## Source layout
 
