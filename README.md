@@ -4,6 +4,8 @@
 
 <h1 align="center">Bing Wallpaper</h1>
 
+<p align="center">English · <a href="README.zh-CN.md">简体中文</a></p>
+
 
 A minimal Bing wallpaper app for **Windows 10/11 x64**, written in native **C / Win32**. No tray icon or resident background process: the worker exits after every attempt, and Windows Task Scheduler handles later retries.
 
