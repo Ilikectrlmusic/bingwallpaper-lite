@@ -119,7 +119,7 @@ static BOOL remove_installation(App *a, BOOL data_too) {
     if (FAILED(scheduler_remove(a))) {
         ReleaseMutex(mutex); CloseHandle(mutex); ReleaseMutex(gui); CloseHandle(gui); return FALSE;
     }
-    BOOL ok = !data_too || recycle_path(a->data);
+    BOOL ok = !data_too || delete_path(a->data);
     if (ok && data_too) {
         LONG r = RegDeleteTreeW(HKEY_CURRENT_USER, a->regkey); ok = r == ERROR_SUCCESS || r == ERROR_FILE_NOT_FOUND;
         HKEY parent; DWORD subkeys = 1, values = 1;
@@ -138,7 +138,12 @@ static BOOL remove_installation(App *a, BOOL data_too) {
                 WIN32_FIND_DATAW fd; HANDLE search = FindFirstFileW(glob, &fd); BOOL empty = TRUE;
                 if (search != INVALID_HANDLE_VALUE) {
                     do { if (wcscmp(fd.cFileName, L".") && wcscmp(fd.cFileName, L"..")) empty = FALSE; } while (FindNextFileW(search, &fd));
-                    FindClose(search); if (empty) recycle_path(parent_path);
+                    FindClose(search);
+                    /* Non-recursive: another installation may create data after the empty check. */
+                    if (empty && !RemoveDirectoryW(parent_path)) {
+                        DWORD error = GetLastError();
+                        if (error != ERROR_DIR_NOT_EMPTY && error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND) ok = FALSE;
+                    }
                 }
             }
         }

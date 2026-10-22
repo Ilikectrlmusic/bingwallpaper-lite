@@ -37,7 +37,7 @@ HRESULT scheduler_ensure(const App *a, const Settings *s);
 HRESULT scheduler_remove(const App *a);
 HRESULT scheduler_validate(const App *a, const Settings *s);
 BOOL launch_worker(const App *a);
-BOOL recycle_path(const wchar_t *path);
+BOOL delete_path(const wchar_t *path);
 BOOL uninstall_app(App *a);
 BOOL remove_task_only(App *a);
 int wallpaper_work(App *a, const Settings *s);

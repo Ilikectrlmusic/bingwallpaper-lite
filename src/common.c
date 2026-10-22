@@ -1,5 +1,6 @@
 #include "common.h"
 #include <shlobj.h>
+#include <shlwapi.h>
 #include <shellapi.h>
 #include <sddl.h>
 #include <stdio.h>
@@ -169,25 +170,75 @@ void log_line(const App *a, const wchar_t *fmt, ...) {
     HANDLE f = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     if (f != INVALID_HANDLE_VALUE) { DWORD written; if (n > 1) WriteFile(f, utf8, (DWORD)n - 1, &written, NULL); CloseHandle(f); }
 }
-BOOL recycle_path(const wchar_t *path) {
-    if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) return TRUE;
-    if (wcslen(path) >= PATH_CAP) return FALSE;
-    HRESULT init = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-    if (FAILED(init) && init != RPC_E_CHANGED_MODE) return FALSE;
-    IFileOperation *op = NULL; IShellItem *item = NULL; BOOL aborted = TRUE;
-    HRESULT hr = CoCreateInstance(&CLSID_FileOperation, NULL, CLSCTX_INPROC_SERVER, &IID_IFileOperation, (void **)&op);
-    if (SUCCEEDED(hr)) hr = IFileOperation_SetOperationFlags(op, FOFX_RECYCLEONDELETE | FOFX_EARLYFAILURE |
-        FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT);
-    if (SUCCEEDED(hr)) hr = SHCreateItemFromParsingName(path, NULL, &IID_IShellItem, (void **)&item);
-    if (SUCCEEDED(hr)) hr = IFileOperation_DeleteItem(op, item, NULL);
-    if (SUCCEEDED(hr)) hr = IFileOperation_PerformOperations(op);
-    if (SUCCEEDED(hr)) hr = IFileOperation_GetAnyOperationsAborted(op, &aborted);
-    if (item) IShellItem_Release(item);
-    if (op) IFileOperation_Release(op);
-    if (SUCCEEDED(init)) CoUninitialize();
-    return SUCCEEDED(hr) && !aborted;
+static BOOL git_name(const wchar_t *name, size_t length) {
+    /* Win32 also normalizes trailing dots/spaces and supports alternate data streams. */
+    for (size_t i = 0; i < length; ++i) if (name[i] == L':') { length = i; break; }
+    while (length && (name[length - 1] == L'.' || name[length - 1] == L' ')) --length;
+    return length == 4 && !_wcsnicmp(name, L".git", 4);
 }
-static void prune_dir(const wchar_t *dir, const wchar_t *pattern, int days, const wchar_t *keep) {
+static BOOL protected_path(const wchar_t *path) {
+    for (const wchar_t *p = path; *p;) {
+        const wchar_t *end = p;
+        while (*end && *end != L'\\' && *end != L'/') ++end;
+        if (git_name(p, (size_t)(end - p))) return TRUE;
+        p = *end ? end + 1 : end;
+    }
+    return FALSE;
+}
+static BOOL missing_path(void) {
+    DWORD error = GetLastError();
+    return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+}
+static BOOL plain_ancestors(wchar_t *path) {
+    wchar_t *root = PathSkipRootW(path);
+    if (!root) { SetLastError(ERROR_INVALID_NAME); return FALSE; }
+    for (wchar_t *p = root; *p; ++p) if (*p == L'\\') {
+        *p = 0; DWORD attributes = GetFileAttributesW(path), error = GetLastError(); *p = L'\\';
+        if (attributes == INVALID_FILE_ATTRIBUTES) { SetLastError(error); return FALSE; }
+        if (attributes & FILE_ATTRIBUTE_REPARSE_POINT) { SetLastError(ERROR_ACCESS_DENIED); return FALSE; }
+    }
+    return TRUE;
+}
+/* Preflight the entire tree before deleting anything. Never follow a junction/symlink. */
+static BOOL deletion_tree(const wchar_t *path, BOOL perform) {
+    DWORD attributes = GetFileAttributesW(path);
+    if (attributes == INVALID_FILE_ATTRIBUTES) return missing_path();
+    if (!(attributes & FILE_ATTRIBUTE_DIRECTORY)) return !perform || DeleteFileW(path);
+    if (!(attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+        wchar_t glob[PATH_CAP], child_path[PATH_CAP]; WIN32_FIND_DATAW fd;
+        if (!path_join(glob, PATH_CAP, path, L"*")) { SetLastError(ERROR_FILENAME_EXCED_RANGE); return FALSE; }
+        HANDLE find = FindFirstFileW(glob, &fd);
+        if (find == INVALID_HANDLE_VALUE) {
+            if (GetLastError() != ERROR_FILE_NOT_FOUND) return FALSE;
+        } else {
+            BOOL ok = TRUE; DWORD error = ERROR_SUCCESS;
+            do {
+                if (!wcscmp(fd.cFileName, L".") || !wcscmp(fd.cFileName, L"..")) continue;
+                if (git_name(fd.cFileName, wcslen(fd.cFileName))) { ok = FALSE; error = ERROR_ACCESS_DENIED; break; }
+                if (!path_join(child_path, PATH_CAP, path, fd.cFileName)) { ok = FALSE; error = ERROR_FILENAME_EXCED_RANGE; break; }
+                if (!deletion_tree(child_path, perform)) { ok = FALSE; error = GetLastError(); break; }
+            } while (FindNextFileW(find, &fd));
+            if (ok && GetLastError() != ERROR_NO_MORE_FILES) { ok = FALSE; error = GetLastError(); }
+            FindClose(find);
+            if (!ok) { SetLastError(error); return FALSE; }
+        }
+    }
+    return !perform || RemoveDirectoryW(path);
+}
+BOOL delete_path(const wchar_t *path) {
+    wchar_t full[PATH_CAP];
+    if (!path || !*path || PathIsRelativeW(path)) { SetLastError(ERROR_INVALID_NAME); return FALSE; }
+    DWORD length = GetFullPathNameW(path, PATH_CAP, full, NULL);
+    if (!length || length >= PATH_CAP) { SetLastError(ERROR_FILENAME_EXCED_RANGE); return FALSE; }
+    if (PathIsRootW(full) || protected_path(full)) { SetLastError(ERROR_ACCESS_DENIED); return FALSE; }
+    while (length && full[length - 1] == L'\\') full[--length] = 0;
+    DWORD attributes = GetFileAttributesW(full);
+    if (attributes == INVALID_FILE_ATTRIBUTES) return missing_path();
+    if (!plain_ancestors(full) || !deletion_tree(full, FALSE)) return FALSE;
+    /* Direct Win32 deletion: no Shell operation, undo flag, or Recycle Bin is involved. */
+    return deletion_tree(full, TRUE);
+}
+static void prune_dir(const App *a, const wchar_t *dir, const wchar_t *pattern, int days, const wchar_t *keep) {
     DWORD attributes = GetFileAttributesW(dir);
     if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) return;
     wchar_t glob[PATH_CAP], path[PATH_CAP]; WIN32_FIND_DATAW fd;
@@ -207,14 +258,16 @@ static void prune_dir(const wchar_t *dir, const wchar_t *pattern, int days, cons
         if (!SystemTimeToFileTime(&day, &ft)) continue;
         ULARGE_INTEGER stamp; stamp.LowPart = ft.dwLowDateTime; stamp.HighPart = ft.dwHighDateTime;
         if (stamp.QuadPart < cut.QuadPart && path_join(path, PATH_CAP, dir, fd.cFileName) &&
-            (!keep || _wcsicmp(path, keep))) recycle_path(path);
+            (!keep || _wcsicmp(path, keep)) && !delete_path(path))
+            log_line(a, L"Expired-file cleanup failed (%lu): %ls", GetLastError(), path);
     } while (FindNextFileW(h, &fd));
     FindClose(h);
 }
 void prune_files(const App *a, const Settings *s) {
     wchar_t current[PATH_CAP] = {0};
-    SystemParametersInfoW(SPI_GETDESKWALLPAPER, PATH_CAP, current, 0);
-    prune_dir(a->cache, L"????" L"-??" L"-??.jpg", s->cache_days, current);
-    prune_dir(a->cache, L"????" L"-??" L"-??.part", s->cache_days, NULL);
-    prune_dir(a->logs, L"????" L"-??" L"-??.log", s->log_days, NULL);
+    if (SystemParametersInfoW(SPI_GETDESKWALLPAPER, PATH_CAP, current, 0))
+        prune_dir(a, a->cache, L"????" L"-??" L"-??.jpg", s->cache_days, current);
+    else log_line(a, L"Cannot identify the current wallpaper; skipped JPG cleanup for safety.");
+    prune_dir(a, a->cache, L"????" L"-??" L"-??.part", s->cache_days, NULL);
+    prune_dir(a, a->logs, L"????" L"-??" L"-??.log", s->log_days, NULL);
 }
