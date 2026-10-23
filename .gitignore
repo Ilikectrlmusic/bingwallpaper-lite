@@ -16,3 +16,8 @@ __pycache__/
 .vscode/
 Thumbs.db
 Desktop.ini
+
+/macos/build/
+/macos/dist/
+/macos/VALIDATION.md
+.DS_Store

@@ -12,7 +12,7 @@ A lightweight Bing wallpaper app. No tray icon or resident background process: t
 | Platform | Status | Source |
 | --- | --- | --- |
 | Windows 10/11 x64 | Available; native C / Win32 | [`windows/`](windows/) |
-| macOS | Planned; no implementation or downloadable package yet | [`macos/`](macos/) |
+| macOS 12+ (Apple silicon / Intel) | Native Swift / AppKit; Ad-hoc DMG builds | [`macos/`](macos/) |
 
 The platform-independent documentation stays at the repository root.
 
@@ -73,11 +73,55 @@ A small `HKCU\Software\BingWallpaperLite` location entry records the data direct
 
 **Moving a portable copy:** Turn off **Daily wallpaper updates**, save, and close the GUI. Move the entire directory, then run `BingWallpaper.exe` at the new location. The saved off setting is retained; enable it and save when you want scheduled updates again. For a writable directory, `data` moves with the program. APPDATA data does not move automatically: back it up via **Open data folder**, then copy it into the corresponding data folder at the new location. The old location entry remains until that old copy is fully uninstalled.
 
+## macOS: install and use
+
+Version **1.0.0** supports **macOS 12 Monterey or later**, with separate packages:
+
+| Chip | Download |
+| --- | --- |
+| Apple silicon (M series) | [BingWallpaperLite-1.0.0-arm64.dmg](https://github.com/Ilikectrlmusic/bingwallpaper-lite/releases/download/v1.0.0/BingWallpaperLite-1.0.0-arm64.dmg) |
+| Intel | [BingWallpaperLite-1.0.0-x86_64.dmg](https://github.com/Ilikectrlmusic/bingwallpaper-lite/releases/download/v1.0.0/BingWallpaperLite-1.0.0-x86_64.dmg) |
+
+Each DMG contains only the app and an Applications shortcut. SHA-256 checksums are included in the existing checksum text file on the [v1.0.0 release page](https://github.com/Ilikectrlmusic/bingwallpaper-lite/releases/tag/v1.0.0). Drag **Bing Wallpaper.app** into **Applications**, eject the DMG, then open the installed app. Do not run from the DMG or move an enabled installation; disable daily updates and save before moving, then reopen and enable them at the new location.
+
+The app and DMGs use **Ad-hoc signatures**, without Developer ID signing or Apple notarization. Gatekeeper can block the first launch. After attempting to open the app, use **System Settings > Privacy & Security > Open Anyway** (System Preferences > Security & Privacy on older macOS). Ad-hoc signing verifies local code integrity; it does not establish a verified developer identity.
+
+The app icon launches the **GUI**, `Contents/MacOS/BingWallpaper`. It delegates wallpaper work to **`Contents/MacOS/BingWallpaperWorker`**. There is no menu bar item, resident worker, or third-party runtime. Closing the GUI quits it; macOS launchd continues scheduling independently.
+
+The native settings window defaults to daily updates enabled, 09:00 local time, 4K (or 1080P), and 3 days of shared cache/log retention (1–365). The 4K default applies to new settings; existing saved resolution choices are preserved. **Save settings** applies the schedule; **Check / update** uses saved settings and still allows only one success per local calendar day. Manual updates also work with daily updates disabled, without automatic retries. The compact settings window groups native controls, and its GitHub icon opens this repository in the default browser. The last successful run shows only the date, with the update status on the right. Unsaved edits prompt to save before quitting. The UI uses Simplified Chinese when the primary system language is Simplified Chinese; all other languages use English.
+
+On first launch, the GUI installs the schedule and requests an immediate update. The daily LaunchAgent runs only the worker, at the chosen local time and at sign-in (checking the time before downloading). A failed attempt schedules a **single calendar retry 30 minutes later**, rounded up to the next whole minute. Subsequent failures schedule the next retry. Retries stop after success or at the end of the local day. The following day starts at the configured time. Retry jobs alternate between two labels so a running worker never kills itself while updating its schedule. An expired, loaded job may remain as launchd metadata until the next daily run; **no worker process remains running**. No periodic polling or `KeepAlive` is used.
+
+Sleeping computers are not actively woken. launchd coalesces missed calendar events after wake; at sign-in it checks whether today's update is due. Daily updates require a logged-in graphical session and permission for the app's background item in macOS Login Items settings. Wallpaper changes apply to the current desktops of connected displays, not the Lock Screen or every inactive Space. macOS controls desktop/Space behavior.
+
+Data lives in **`~/Library/Application Support/BingWallpaperLite/`**: `settings.json`, `state.json`, `cache/`, and `logs/`. Settings/state writes are atomic; a process lock prevents overlapping workers. Bing metadata uses the same `zh-CN` market as Windows, independent of UI language. Downloads use HTTPS, bounded sizes/timeouts, and fully decoded images of the requested dimensions. Cache/log cleanup uses local calendar dates and preserves known active wallpapers. Expired files are permanently deleted.
+
+To uninstall, disable **Daily wallpaper updates**, save, quit, then move the app to Trash. This removes its daily/retry LaunchAgents while preserving downloaded wallpaper and settings. Optionally delete the data folder afterward; this also removes cached images that may still be used as wallpaper. LaunchAgent filenames begin with `com.ilikectrlmusic.bingwallpaper-lite.` in `~/Library/LaunchAgents/`. One installed copy per user is supported.
+
+## macOS: build and test
+
+Requires Xcode / Command Line Tools with a macOS SDK and Swift compiler; no package dependencies. From the repository root:
+
+```sh
+./macos/scripts/test.sh          # isolated behavior, storage, image and schedule checks
+./macos/scripts/test.sh --live   # also fetch and decode actual Bing 1080P / 4K images
+./macos/scripts/build.sh         # compile, Ad-hoc sign, create and verify both DMGs
+# Or build one architecture:
+./macos/scripts/build.sh arm64
+./macos/scripts/build.sh x86_64
+```
+
+Outputs and SHA-256 checksums are in `macos/dist/`; app bundles are in `macos/build/<architecture>/`. GUI and worker target macOS 12.0. The scripts cross-compile both architectures on either Mac architecture. Intel runtime testing requires an Intel Mac or Rosetta; compiling does not substitute for testing on the minimum supported OS.
+
+`Bing Wallpaper.app/Contents/MacOS/BingWallpaperWorker --diagnose` prints paths and the proposed daily LaunchAgent without writing data, installing jobs, downloading, or changing wallpaper. The GUI's `--preview` argument opens its window without first-launch scheduling or downloads; use it only to inspect the UI.
+
 ## Source layout
 
 - `windows/src/` — Win32 GUI, system-default browser links, worker, storage, scheduling, downloads, and wallpaper updates.
 - `windows/assets/` — App/GitHub icons, manifest, and Windows resources.
 - `windows/packaging/` — English and Simplified Chinese portable uninstall launchers and shared helper.
-- `macos/` — Reserved for the macOS implementation.
+- `macos/Sources/` — Native AppKit GUI, standalone worker, launchd scheduling, and storage.
+- `macos/Resources/` — English / Simplified Chinese strings and app resources.
+- `macos/scripts/` — Reproducible dual-architecture build and behavioral tests.
 
-Local tests, build tools, installer sources, and generated binaries are excluded from Git. A Windows-only checkout can use Git sparse checkout to include the root documentation and `windows/`, without checking out `macos/`.
+Windows local tests/build tools/installer sources and all generated binaries are excluded from Git. macOS build scripts and tests are included. A Windows-only checkout can use Git sparse checkout to include the root documentation and `windows/`, without checking out `macos/`.
