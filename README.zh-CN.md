@@ -25,8 +25,6 @@
 | 安装版 | [BingWallpaperLite-Setup-1.0.0-x64.exe](https://github.com/Ilikectrlmusic/bingwallpaper-lite/releases/download/v1.0.0/BingWallpaperLite-Setup-1.0.0-x64.exe) |
 | 便携版 | [BingWallpaperLite-Portable-1.0.0-x64.zip](https://github.com/Ilikectrlmusic/bingwallpaper-lite/releases/download/v1.0.0/BingWallpaperLite-Portable-1.0.0-x64.zip) |
 
-以下设置说明对应当前源码；已发布的 1.0.0 安装包可能与开发中的源码不同。
-
 无需额外安装 Python、.NET 或 WebView 运行时。便携版卸载脚本使用 Windows 自带的 Windows PowerShell。
 
 ## Windows 使用
@@ -42,7 +40,7 @@
 | --- | --- | --- |
 | 每日壁纸更新 | 开启 | 开启 / 关闭 |
 | 每日启动时间 | 系统本地时间 09:00 | 自行选择时间 |
-| 下载壁纸分辨率 | 1080P | 1080P 或 4K |
+| 下载壁纸分辨率 | 4K | 1080P 或 4K |
 | 缓存与日志保留天数 | 3 天 | 1–365 天，图片缓存和日志共用 |
 
 - **保存设置**：应用更改。关闭每日更新会停止并移除本副本的定时任务，重新开启并保存则重建任务。关闭时保留程序、设置、图片和日志。
@@ -50,7 +48,7 @@
 - **打开数据目录**：查看设置、缓存与日志。
 - 有未保存更改时关闭窗口，可选择**保存并退出**或**取消**。
 
-分辨率设置在下一次下载时生效，不会触发当天第二次成功更新。已有配置中独立的缓存、日志保留天数会取较长的有效值作为共用天数，直至保存新的数值。
+Windows 新配置默认使用 4K，已有保存的分辨率选择会保留。分辨率设置在下一次下载时生效，不会触发当天第二次成功更新。已有配置中独立的缓存、日志保留天数会取较长的有效值作为共用天数，直至保存新的数值。
 
 ## Windows 运行与重试
 

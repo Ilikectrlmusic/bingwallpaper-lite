@@ -120,8 +120,8 @@ void settings_load(const App *a, Settings *s) {
     if (logs < 1 || logs > 365) logs = 3;
     s->retention_days = GetPrivateProfileIntW(L"Storage", L"RetentionDays", cache > logs ? cache : logs, a->ini);
     wchar_t resolution[32];
-    GetPrivateProfileStringW(L"Wallpaper", L"Resolution", L"1080P", resolution, 32, a->ini);
-    s->resolution = !_wcsicmp(resolution, L"4K") ? RESOLUTION_4K : RESOLUTION_1080P;
+    GetPrivateProfileStringW(L"Wallpaper", L"Resolution", L"4K", resolution, 32, a->ini);
+    s->resolution = !_wcsicmp(resolution, L"1080P") ? RESOLUTION_1080P : RESOLUTION_4K;
     if (s->hour < 0 || s->hour > 23) s->hour = 9;
     if (s->minute < 0 || s->minute > 59) s->minute = 0;
     if (s->retention_days < 1 || s->retention_days > 365) s->retention_days = 3;
@@ -133,7 +133,7 @@ BOOL settings_save(const App *a, const Settings *s) {
     if (f == INVALID_HANDLE_VALUE) return FALSE;
     wchar_t text[512]; DWORD written; WORD bom = 0xfeff;
     int n = swprintf(text, 512, L"[Schedule]\r\nEnabled=%d\r\nHour=%d\r\nMinute=%d\r\n[Storage]\r\nRetentionDays=%d\r\n[Wallpaper]\r\nResolution=%ls\r\n",
-        s->daily_enabled ? 1 : 0, s->hour, s->minute, s->retention_days, s->resolution == RESOLUTION_4K ? L"4K" : L"1080P");
+        s->daily_enabled ? 1 : 0, s->hour, s->minute, s->retention_days, s->resolution == RESOLUTION_1080P ? L"1080P" : L"4K");
     BOOL ok = n > 0 && WriteFile(f, &bom, 2, &written, NULL) && written == 2 &&
         WriteFile(f, text, (DWORD)n * 2, &written, NULL) && written == (DWORD)n * 2 && FlushFileBuffers(f);
     CloseHandle(f);

@@ -25,8 +25,6 @@ The platform-independent documentation stays at the repository root.
 | Installer | [BingWallpaperLite-Setup-1.0.0-x64.exe](https://github.com/Ilikectrlmusic/bingwallpaper-lite/releases/download/v1.0.0/BingWallpaperLite-Setup-1.0.0-x64.exe) |
 | Portable | [BingWallpaperLite-Portable-1.0.0-x64.zip](https://github.com/Ilikectrlmusic/bingwallpaper-lite/releases/download/v1.0.0/BingWallpaperLite-Portable-1.0.0-x64.zip) |
 
-The settings below describe the current source. Published 1.0.0 binaries may differ from the development source.
-
 No separate Python, .NET, or WebView runtime is required. Portable uninstall scripts use Windows PowerShell included with Windows.
 
 ## Windows: getting started
@@ -42,7 +40,7 @@ No separate Python, .NET, or WebView runtime is required. Portable uninstall scr
 | --- | --- | --- |
 | Daily wallpaper updates | On | On / off |
 | Daily start time | 09:00, local system time | Choose a time |
-| Download resolution | 1080P | 1080P or 4K |
+| Download resolution | 4K | 1080P or 4K |
 | Cache and log retention | 3 days | 1–365 days, shared by cached images and logs |
 
 - **Save settings** — Apply changes. Turning daily updates off stops and removes this copy's scheduled task; turning them on creates it again. Program files, settings, images, and logs remain when updates are off.
@@ -50,7 +48,7 @@ No separate Python, .NET, or WebView runtime is required. Portable uninstall scr
 - **Open data folder** — View settings, cache, and logs.
 - Closing with unsaved changes offers **Save and exit** or **Cancel**.
 
-Resolution changes apply to the next download, not another successful update on the same day. Existing separate cache/log retention settings use the longer valid period as the shared value until you save a new value.
+New Windows settings default to 4K; existing saved resolution choices are preserved. Resolution changes apply to the next download, not another successful update on the same day. Existing separate cache/log retention settings use the longer valid period as the shared value until you save a new value.
 
 ## Windows: scheduling and retries
 
