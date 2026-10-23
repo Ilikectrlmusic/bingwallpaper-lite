@@ -112,15 +112,19 @@ BOOL app_init(App *a) {
 void settings_load(const App *a, Settings *s) {
     s->hour = GetPrivateProfileIntW(L"Schedule", L"Hour", 9, a->ini);
     s->minute = GetPrivateProfileIntW(L"Schedule", L"Minute", 0, a->ini);
-    s->cache_days = GetPrivateProfileIntW(L"Storage", L"CacheDays", 3, a->ini);
-    s->log_days = GetPrivateProfileIntW(L"Storage", L"LogDays", 3, a->ini);
+    s->daily_enabled = GetPrivateProfileIntW(L"Schedule", L"Enabled", 1, a->ini) != 0;
+    /* Migrate separate legacy values conservatively; do not shorten either retention. */
+    int cache = GetPrivateProfileIntW(L"Storage", L"CacheDays", 3, a->ini);
+    int logs = GetPrivateProfileIntW(L"Storage", L"LogDays", 3, a->ini);
+    if (cache < 1 || cache > 365) cache = 3;
+    if (logs < 1 || logs > 365) logs = 3;
+    s->retention_days = GetPrivateProfileIntW(L"Storage", L"RetentionDays", cache > logs ? cache : logs, a->ini);
     wchar_t resolution[32];
     GetPrivateProfileStringW(L"Wallpaper", L"Resolution", L"1080P", resolution, 32, a->ini);
     s->resolution = !_wcsicmp(resolution, L"4K") ? RESOLUTION_4K : RESOLUTION_1080P;
     if (s->hour < 0 || s->hour > 23) s->hour = 9;
     if (s->minute < 0 || s->minute > 59) s->minute = 0;
-    if (s->cache_days < 1 || s->cache_days > 365) s->cache_days = 3;
-    if (s->log_days < 1 || s->log_days > 365) s->log_days = 3;
+    if (s->retention_days < 1 || s->retention_days > 365) s->retention_days = 3;
 }
 BOOL settings_save(const App *a, const Settings *s) {
     wchar_t tmp[PATH_CAP];
@@ -128,8 +132,8 @@ BOOL settings_save(const App *a, const Settings *s) {
     HANDLE f = CreateFileW(tmp, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     if (f == INVALID_HANDLE_VALUE) return FALSE;
     wchar_t text[512]; DWORD written; WORD bom = 0xfeff;
-    int n = swprintf(text, 512, L"[Schedule]\r\nHour=%d\r\nMinute=%d\r\n[Storage]\r\nCacheDays=%d\r\nLogDays=%d\r\n[Wallpaper]\r\nResolution=%ls\r\n",
-        s->hour, s->minute, s->cache_days, s->log_days, s->resolution == RESOLUTION_4K ? L"4K" : L"1080P");
+    int n = swprintf(text, 512, L"[Schedule]\r\nEnabled=%d\r\nHour=%d\r\nMinute=%d\r\n[Storage]\r\nRetentionDays=%d\r\n[Wallpaper]\r\nResolution=%ls\r\n",
+        s->daily_enabled ? 1 : 0, s->hour, s->minute, s->retention_days, s->resolution == RESOLUTION_4K ? L"4K" : L"1080P");
     BOOL ok = n > 0 && WriteFile(f, &bom, 2, &written, NULL) && written == 2 &&
         WriteFile(f, text, (DWORD)n * 2, &written, NULL) && written == (DWORD)n * 2 && FlushFileBuffers(f);
     CloseHandle(f);
@@ -266,8 +270,8 @@ static void prune_dir(const App *a, const wchar_t *dir, const wchar_t *pattern, 
 void prune_files(const App *a, const Settings *s) {
     wchar_t current[PATH_CAP] = {0};
     if (SystemParametersInfoW(SPI_GETDESKWALLPAPER, PATH_CAP, current, 0))
-        prune_dir(a, a->cache, L"????" L"-??" L"-??.jpg", s->cache_days, current);
+        prune_dir(a, a->cache, L"????" L"-??" L"-??.jpg", s->retention_days, current);
     else log_line(a, L"Cannot identify the current wallpaper; skipped JPG cleanup for safety.");
-    prune_dir(a, a->cache, L"????" L"-??" L"-??.part", s->cache_days, NULL);
-    prune_dir(a, a->logs, L"????" L"-??" L"-??.log", s->log_days, NULL);
+    prune_dir(a, a->cache, L"????" L"-??" L"-??.part", s->retention_days, NULL);
+    prune_dir(a, a->logs, L"????" L"-??" L"-??.log", s->retention_days, NULL);
 }

@@ -19,20 +19,33 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, PWSTR cmd, int show)
     if (!app_init(&a)) return 2;
     if (uninstall) return uninstall_app(&a) ? 0 : 3;
     Settings settings; settings_load(&a, &settings);
-    if (configure || start) {
-        HRESULT hr = scheduler_ensure(&a, &settings);
-        if (FAILED(hr)) { log_line(&a, L"Task setup failed: 0x%08lx", (unsigned long)hr); return 4; }
-        if (configure) return 0;
-        wchar_t today[16]; local_date(today);
-        if (!WritePrivateProfileStringW(L"Request", L"Date", today, a.request)) return 2;
-        return launch_worker(&a) ? 0 : 5;
+    /* Stop an automatic run before waiting for its lock. Unlike uninstall, configure
+       must work while the GUI is open and owns its separate GUI mutex. */
+    if (configure && !settings.daily_enabled) {
+        HRESULT hr = scheduler_remove(&a);
+        if (FAILED(hr)) { log_line(&a, L"Task removal failed: 0x%08lx", (unsigned long)hr); return 4; }
     }
     HANDLE mutex = CreateMutexW(NULL, FALSE, a.mutex);
     if (!mutex) return 2;
-    DWORD wait = WaitForSingleObject(mutex, 0);
-    if (wait != WAIT_OBJECT_0 && wait != WAIT_ABANDONED) { CloseHandle(mutex); return 0; }
-    HRESULT hr = scheduler_ensure(&a, &settings);
-    if (FAILED(hr)) log_line(&a, L"Task repair failed: 0x%08lx; still attempting today's wallpaper.", (unsigned long)hr);
+    DWORD wait = WaitForSingleObject(mutex, configure || start ? 180000 : 0);
+    if (wait != WAIT_OBJECT_0 && wait != WAIT_ABANDONED) { CloseHandle(mutex); return configure || start ? 6 : 0; }
+    /* Settings may have changed while a previous worker held the lock. */
+    settings_load(&a, &settings);
+    if (scheduled && !settings.daily_enabled) { ReleaseMutex(mutex); CloseHandle(mutex); return 0; }
+    HRESULT hr = S_OK;
+    if (settings.daily_enabled || configure) hr = scheduler_ensure(&a, &settings);
+    if (FAILED(hr)) log_line(&a, L"Task configuration failed: 0x%08lx", (unsigned long)hr);
+    if (configure || (start && settings.daily_enabled)) {
+        int result = FAILED(hr) ? 4 : 0;
+        if (!result && start) {
+            wchar_t today[16]; local_date(today);
+            if (!WritePrivateProfileStringW(L"Request", L"Date", today, a.request)) result = 2;
+        }
+        ReleaseMutex(mutex); CloseHandle(mutex);
+        if (!result && start && !launch_worker(&a)) result = 5;
+        return result;
+    }
+    /* Manual updates work with automatic updates off, without creating a retry task. */
     if (scheduled && !GetPrivateProfileIntW(L"Work", L"Pending", 0, a.state)) {
         SYSTEMTIME now; GetLocalTime(&now);
         wchar_t today[16], requested[32]; local_date(today);

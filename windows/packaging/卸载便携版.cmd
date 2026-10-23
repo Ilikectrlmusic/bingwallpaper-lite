@@ -1,7 +1,7 @@
 @echo off
 setlocal
 chcp 65001 >nul
-rem 中文卸载入口：弹窗选择卸载或仅卸载定时任务，并显示中文结果。
+rem 中文卸载入口：直接完整卸载程序与数据，并显示中文结果。
 set "BWL_ROOT=%~dp0"
 cd /d "%TEMP%"
 (

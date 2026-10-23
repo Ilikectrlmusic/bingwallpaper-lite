@@ -1,6 +1,6 @@
 @echo off
 setlocal
-rem English uninstall: choose full uninstall or task-only removal, with English result dialogs.
+rem English uninstall: remove the application and data, with English result dialogs.
 set "BWL_ROOT=%~dp0"
 cd /d "%TEMP%"
 (

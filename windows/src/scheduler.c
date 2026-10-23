@@ -79,7 +79,7 @@ done:
     if (SUCCEEDED(init)) CoUninitialize();
     return hr;
 }
-HRESULT scheduler_ensure(const App *a, const Settings *s) { return scheduler(a, s, 0); }
+HRESULT scheduler_ensure(const App *a, const Settings *s) { return scheduler(a, s->daily_enabled ? s : NULL, s->daily_enabled ? 0 : 1); }
 HRESULT scheduler_remove(const App *a) { return scheduler(a, NULL, 1); }
 HRESULT scheduler_validate(const App *a, const Settings *s) { return scheduler(a, s, 2); }
 BOOL launch_worker(const App *a) {

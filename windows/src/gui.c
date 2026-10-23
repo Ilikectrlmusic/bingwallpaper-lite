@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <wchar.h>
 
-enum { ID_TIME = 100, ID_CACHE, ID_LOG, ID_SAVE, ID_RUN, ID_GITHUB, ID_OPEN, ID_VERSION, ID_RESOLUTION };
+enum { ID_TIME = 100, ID_RETENTION, ID_DAILY, ID_SAVE, ID_RUN, ID_GITHUB, ID_OPEN, ID_VERSION, ID_RESOLUTION };
 enum { CLIENT_WIDTH = 420, CLIENT_HEIGHT = 366, INPUT_WIDTH = 68, INPUT_HEIGHT = 24 };
 enum { ID_SAVE_EXIT = 200 };
 static App app;
@@ -14,7 +14,7 @@ static HANDLE child;
 static BOOL first_request;
 static Settings saved_settings, pending_settings;
 static BOOL save_inflight, save_pending, exit_after_save;
-static HWND window, time_control, cache_control, log_control, resolution_control, last_control;
+static HWND window, time_control, retention_control, daily_control, resolution_control, last_control;
 static HICON github_icon;
 static BOOL ui_chinese;
 static BOOL chinese_language(LANGID language) {
@@ -80,21 +80,21 @@ static BOOL worker_request(const wchar_t *mode, BOOL initial) {
 }
 static BOOL read_settings(Settings *s) {
     SYSTEMTIME t; if (SendMessageW(time_control, DTM_GETSYSTEMTIME, 0, (LPARAM)&t) != GDT_VALID) return FALSE;
-    BOOL a, b;
+    BOOL valid;
     s->hour = t.wHour; s->minute = t.wMinute;
-    s->cache_days = (int)GetDlgItemInt(window, ID_CACHE, &a, FALSE);
-    s->log_days = (int)GetDlgItemInt(window, ID_LOG, &b, FALSE);
+    s->retention_days = (int)GetDlgItemInt(window, ID_RETENTION, &valid, FALSE);
+    s->daily_enabled = SendMessageW(daily_control, BM_GETCHECK, 0, 0) == BST_CHECKED;
     LRESULT selected = SendMessageW(resolution_control, CB_GETCURSEL, 0, 0);
     s->resolution = selected == 1 ? RESOLUTION_4K : RESOLUTION_1080P;
-    return (selected == 0 || selected == 1) && a && b && s->cache_days >= 1 && s->cache_days <= 365 && s->log_days >= 1 && s->log_days <= 365;
+    return (selected == 0 || selected == 1) && valid && s->retention_days >= 1 && s->retention_days <= 365;
 }
 static BOOL settings_dirty(void) {
     Settings s;
     return !read_settings(&s) || s.hour != saved_settings.hour || s.minute != saved_settings.minute ||
-        s.cache_days != saved_settings.cache_days || s.log_days != saved_settings.log_days || s.resolution != saved_settings.resolution;
+        s.retention_days != saved_settings.retention_days || s.daily_enabled != saved_settings.daily_enabled || s.resolution != saved_settings.resolution;
 }
 static void enable_form(BOOL enable) {
-    const int ids[] = {ID_TIME, ID_CACHE, ID_LOG, ID_RESOLUTION, ID_SAVE, ID_RUN};
+    const int ids[] = {ID_TIME, ID_RETENTION, ID_DAILY, ID_RESOLUTION, ID_SAVE, ID_RUN};
     for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); ++i) EnableWindow(GetDlgItem(window, ids[i]), enable);
 }
 static BOOL start_pending_save(void) {
@@ -107,7 +107,7 @@ static BOOL start_pending_save(void) {
 static BOOL save_current(BOOL and_exit) {
     Settings s;
     if (!read_settings(&s)) {
-        MessageBoxW(window, UI(L"缓存和日志保留天数请输入 1 到 365 的整数。", L"Enter whole numbers from 1 to 365 for cache and log retention."), UI(L"请检查设置", L"Check settings"), MB_OK | MB_ICONWARNING);
+        MessageBoxW(window, UI(L"缓存与日志保留天数请输入 1 到 365 的整数。", L"Enter a whole number from 1 to 365 for cache and log retention."), UI(L"请检查设置", L"Check settings"), MB_OK | MB_ICONWARNING);
         return FALSE;
     }
     if (!settings_save(&app, &s)) { status(UI(L"设置保存失败，请检查数据目录的权限和磁盘空间。", L"Cannot save settings. Check data folder permissions and free disk space.")); return FALSE; }
@@ -150,19 +150,17 @@ static LRESULT CALLBACK procedure(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         HWND title = control(L"STATIC", L"Bing Wallpaper", 0, 74, 18, 320, 32, 0);
         SendMessageW(title, WM_SETFONT, (WPARAM)title_font, TRUE);
         control(L"STATIC", UI(L"每日一张风景。", L"A new view every day."), 0, 76, 52, 300, 20, 0);
-        control(L"STATIC", UI(L"每日启动时间", L"Daily start time"), 0, 24, 103, 230, 20, 0);
-        time_control = control(DATETIMEPICK_CLASSW, L"", DTS_TIMEFORMAT | WS_TABSTOP, 290, 100, INPUT_WIDTH, INPUT_HEIGHT, ID_TIME);
+        control(L"STATIC", UI(L"每日壁纸更新", L"Daily wallpaper updates"), 0, 24, 103, 230, 20, 0);
+        daily_control = control(L"BUTTON", L"", BS_AUTOCHECKBOX | WS_TABSTOP, 290, 100, INPUT_WIDTH, INPUT_HEIGHT, ID_DAILY);
+        control(L"STATIC", UI(L"每日启动时间", L"Daily start time"), 0, 24, 141, 230, 20, 0);
+        time_control = control(DATETIMEPICK_CLASSW, L"", DTS_TIMEFORMAT | WS_TABSTOP, 290, 138, INPUT_WIDTH, INPUT_HEIGHT, ID_TIME);
         SendMessageW(time_control, DTM_SETFORMATW, 0, (LPARAM)L"HH:mm");
-        control(L"STATIC", UI(L"图片缓存保留天数", L"Image cache retention"), 0, 24, 141, 230, 20, 0);
-        cache_control = control(L"EDIT", L"", WS_BORDER | ES_NUMBER | WS_TABSTOP, 290, 138, INPUT_WIDTH, INPUT_HEIGHT, ID_CACHE);
-        SendMessageW(cache_control, EM_SETLIMITTEXT, 3, 0);
-        control(L"STATIC", UI(L"天", L"days"), 0, 302 + INPUT_WIDTH, 141, UI(16, 32), 20, 0);
-        control(L"STATIC", UI(L"运行日志保留天数", L"Log retention"), 0, 24, 179, 230, 20, 0);
-        log_control = control(L"EDIT", L"", WS_BORDER | ES_NUMBER | WS_TABSTOP, 290, 176, INPUT_WIDTH, INPUT_HEIGHT, ID_LOG);
-        SendMessageW(log_control, EM_SETLIMITTEXT, 3, 0);
-        control(L"STATIC", UI(L"天", L"days"), 0, 302 + INPUT_WIDTH, 179, UI(16, 32), 20, 0);
-        control(L"STATIC", UI(L"下载壁纸分辨率", L"Download resolution"), 0, 24, 217, 230, 20, 0);
-        resolution_control = control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP, 290, 214, INPUT_WIDTH, 100, ID_RESOLUTION);
+        control(L"STATIC", UI(L"下载壁纸分辨率", L"Download resolution"), 0, 24, 179, 230, 20, 0);
+        resolution_control = control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP, 290, 176, INPUT_WIDTH, 100, ID_RESOLUTION);
+        control(L"STATIC", UI(L"缓存与日志保留天数", L"Cache and log retention"), 0, 24, 217, 230, 20, 0);
+        retention_control = control(L"EDIT", L"", WS_BORDER | ES_NUMBER | WS_TABSTOP, 290, 214, INPUT_WIDTH, INPUT_HEIGHT, ID_RETENTION);
+        SendMessageW(retention_control, EM_SETLIMITTEXT, 3, 0);
+        control(L"STATIC", UI(L"天", L"days"), 0, 302 + INPUT_WIDTH, 217, UI(16, 32), 20, 0);
         SetWindowSubclass(resolution_control, resolution_proc, 1, 0);
         SendMessageW(resolution_control, CB_ADDSTRING, 0, (LPARAM)L"1080P");
         SendMessageW(resolution_control, CB_ADDSTRING, 0, (LPARAM)L"4K");
@@ -182,7 +180,8 @@ static LRESULT CALLBACK procedure(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         Settings s; settings_load(&app, &s);
         SYSTEMTIME t; GetLocalTime(&t); t.wHour = (WORD)s.hour; t.wMinute = (WORD)s.minute; t.wSecond = 0;
         SendMessageW(time_control, DTM_SETSYSTEMTIME, GDT_VALID, (LPARAM)&t);
-        SetDlgItemInt(hwnd, ID_CACHE, s.cache_days, FALSE); SetDlgItemInt(hwnd, ID_LOG, s.log_days, FALSE);
+        SetDlgItemInt(hwnd, ID_RETENTION, s.retention_days, FALSE);
+        SendMessageW(daily_control, BM_SETCHECK, s.daily_enabled ? BST_CHECKED : BST_UNCHECKED, 0);
         SendMessageW(resolution_control, CB_SETCURSEL, s.resolution == RESOLUTION_4K ? 1 : 0, 0);
         saved_settings = s;
         refresh_last();
@@ -192,7 +191,7 @@ static LRESULT CALLBACK procedure(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     }
     case WM_APP: {
         BOOL first = !GetPrivateProfileIntW(L"GUI", L"InitialRequested", 0, app.gui);
-        worker_request(first ? L"--start" : L"--configure", first); return 0;
+        worker_request(first && saved_settings.daily_enabled ? L"--start" : L"--configure", first); return 0;
     }
     case WM_COMMAND:
         switch (LOWORD(wp)) {

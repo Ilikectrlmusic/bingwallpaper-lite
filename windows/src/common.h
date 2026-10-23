@@ -21,7 +21,7 @@ typedef struct {
     wchar_t id[24], sid[192], task[256], regkey[256], mutex[300];
 } App;
 enum { RESOLUTION_1080P = 1080, RESOLUTION_4K = 2160 };
-typedef struct { int hour, minute, cache_days, log_days, resolution; } Settings;
+typedef struct { int hour, minute, retention_days, resolution; BOOL daily_enabled; } Settings;
 
 BOOL path_join(wchar_t *out, size_t cap, const wchar_t *dir, const wchar_t *name);
 BOOL app_init(App *a);
