@@ -7,7 +7,7 @@
 
 **Ultra-lightweight by design.** A system-scheduled task updates your wallpaper and then exits. No tray icon, no always-running background process.
 
-| Comparison | Bing Wallpaper Lite v1.0.0 | Official Bing Wallpaper v1.1.460.0 |
+| Comparison | Bing Wallpaper Lite v1.0.0 | Bing Wallpaper v1.1.460.0 |
 | --- | --- | --- |
 | macOS support | ✅ | ❌ |
 | Windows EXE installer size | **2.2 MB** | **218.5 MB** |
