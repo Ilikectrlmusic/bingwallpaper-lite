@@ -7,7 +7,7 @@
 
 **极致轻量化。** 系统定时任务触发，然后就退出。无托盘，也不常驻后台。
 
-| 对比项目 | Bing Wallpaper Lite v1.0.0 | 官方 Bing Wallpaper v1.1.460.0 |
+| 对比项目 | Bing Wallpaper Lite v1.0.0 | Bing Wallpaper v1.1.460.0 |
 | --- | --- | --- |
 | macOS支持 | ✅ | ❌ |
 | exe安装包大小 | **2.2 MB** | **218.5 MB** |
