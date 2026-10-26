@@ -3,7 +3,19 @@
 <h1 align="center">Bing Wallpaper Lite</h1>
 <p align="center"><a href="README.md">English</a> · 简体中文</p>
 
-轻量级 Bing 每日壁纸工具。每天更新一次桌面壁纸，完成后自动退出，**没有托盘图标，也不常驻后台**。
+## 为什么选择 Lite？
+
+**极致轻量化。** 系统定时任务触发，然后就退出。无托盘，也不常驻后台。
+
+| 对比项目 | Bing Wallpaper Lite v1.0.0 | 官方 Bing Wallpaper v1.1.460.0 |
+| --- | --- | --- |
+| macOS支持 | ✅ | ❌ |
+| exe安装包大小 | **2.2 MB** | **218.5 MB** |
+| 常驻后台 | **否，更新完成后退出** | 是，常驻系统托盘 |
+| 失败重试 | ✅ | ✅ |
+
+
+## 功能介绍
 
 - Windows 原生 C / Win32，macOS 原生 Swift / AppKit
 - 支持 1080P / 4K 壁纸
@@ -11,18 +23,6 @@
 - 下载失败自动重试
 - 简体中文 / 英文界面
 
-## 为什么选择 Lite？
-
-**极致轻量化。** 只做一件事：每天更新 Bing 壁纸，然后退出。无需让壁纸工具全天驻留后台。
-
-| 对比项目（Windows） | Bing Wallpaper Lite v1.0.0 | 微软 Bing Wallpaper v1.1.460.0 |
-| --- | --- | --- |
-| 安装包大小 | **约 2.2 MB** | **218.5 MB** |
-| 大小差距 | **约为官方的 1%，小约 99 倍** | — |
-| 常驻后台 | **否，更新完成后退出** | 是，提供常驻系统托盘程序 |
-| 每日壁纸更新 | 系统定时任务触发 | 官方应用自动管理 |
-
-> 大小比较基于本项目 [v1.0.0 Windows 安装包](https://github.com/Ilikectrlmusic/bingwallpaper-lite/releases/tag/v1.0.0) 和 [微软官方下载中心](https://www.microsoft.com/en-us/download/details.aspx?id=101202) 标注的 2026-08-24 版本；仅比较下载包大小，不代表安装后占用或内存使用量。
 
 ## 下载
 
