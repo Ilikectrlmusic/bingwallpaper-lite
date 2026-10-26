@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | macOS support | ✅ | ❌ |
 | Windows package size | **2.2 MB (installer) / 127 KB (ZIP)** | **218.5 MB** |
-| macOS package size | **0.74 MB (Apple silicon) / 0.80 MB (Intel)** | **N/A (no macOS version)** |
+| macOS package size | **740 KB (Apple silicon) / 800 KB (Intel)** | ❌ |
 | Always running in background | **No — exits after updating** | Yes — stays in the system tray |
 | Retry on failure | ✅ | ✅ |
 
