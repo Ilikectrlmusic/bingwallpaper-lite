@@ -10,7 +10,7 @@
 | Comparison | Bing Wallpaper Lite v1.0.0 | Bing Wallpaper v1.1.460.0 |
 | --- | --- | --- |
 | macOS support | ✅ | ❌ |
-| Windows EXE installer size | **2.2 MB** | **218.5 MB** |
+| Windows package size | **2.2 MB (installer) / 0.13 MB (portable ZIP)** | **218.5 MB** |
 | Always running in background | **No — exits after updating** | Yes — stays in the system tray |
 | Retry on failure | ✅ | ✅ |
 
