@@ -51,5 +51,6 @@
 - **Windows 便携版：** 运行 `卸载便携版.cmd` ，会同时删除便携目录和应用数据。
 - **macOS：** 先关闭每日更新并保存，再将应用移到废纸篓。如需删除用户数据，可手动清理 `~/Library/Application Support/BingWallpaperLite/`。
 
+---
 
 各版本 SHA-256 校验值见 Release 页面。
