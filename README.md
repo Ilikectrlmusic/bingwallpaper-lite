@@ -42,6 +42,6 @@ Only one successful wallpaper change is made per day, including manual checks. T
 ## Source
 
 - [Windows](windows/)
-- [macOS](macos/) — build with `./macos/scripts/build.sh`, test with `./macos/scripts/test.sh`
+- [macOS](macos/)
 
 SHA-256 checksums are available with each release.
